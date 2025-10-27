@@ -90,7 +90,8 @@ class CrfRnnLayer(Layer):
 
         c, h, w = self.num_classes, self.image_dims[0], self.image_dims[1]
         # all_ones = np.ones((c, h, w), dtype=np.float32)
-        all_ones = tf.ones((c, h, w), dtype=tf.float32)
+        # all_ones = tf.ones((c, h, w), dtype=tf.float32)
+        all_ones = tf.ones_like(unaries)
 
         # Prepare filter normalization coefficients
         spatial_norm_vals = custom_module.high_dim_filter(all_ones, rgb, bilateral=False,
@@ -137,8 +138,8 @@ class CrfRnnLayer(Layer):
         return input_shape
         
 if __name__ == "__main__":
-    tf.debugging.set_log_device_placement(True)
-    
+    # tf.debugging.set_log_device_placement(True)
+
     img = tf.random.uniform((3,512,512,3))
     logits = tf.random.normal((3,512,512,2))
     
@@ -146,3 +147,12 @@ if __name__ == "__main__":
     
     out = layer((logits, img))
     breakpoint()
+
+    target = tf.ones_like(out)
+    with tf.GradientTape() as tape:
+        tape.watch(logits)
+        out = layer((logits, img))
+        loss = tf.reduce_mean(tf.abs(target - out))
+
+    grads = tape.gradient(loss, layer.trainable_variables)
+    print(f"{grads[0].shape=}")

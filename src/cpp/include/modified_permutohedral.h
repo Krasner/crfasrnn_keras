@@ -53,7 +53,7 @@ typedef struct MatrixEntry {
 
 
 class ModifiedPermutohedral {
-protected:
+private:
   struct Neighbors {
     int n1, n2;
 
@@ -64,10 +64,10 @@ protected:
   std::vector<int> offset_, rank_;
   std::vector<float> barycentric_;
   std::vector<Neighbors> blur_neighbors_;
-  #if __CUDACC__
   bool is_init;
+  #if __CUDACC__
   MatrixEntry * matrix;
-  HashTable table;
+  std::unique_ptr<HashTable> table;
   #endif
   // Number of elements, size of sparse discretized space, dimension of features
   int N_, M_, d_, w_, h_;
@@ -80,13 +80,24 @@ protected:
 
 
 public:
-  ModifiedPermutohedral() : N_( 0 ), M_( 0 ), d_( 0 ) {}
-  ~ModifiedPermutohedral() {}
+  ModifiedPermutohedral() : N_( 0 ), M_( 0 ), d_( 0 ) {
+    #if __CUDACC__
+    table = std::make_unique<HashTable>();
+    #endif
+  }
+  ~ModifiedPermutohedral() {
+    //std::cout << "MP destructor called" << std::endl;
+    #if __CUDACC__
+    // table->~HashTable();
+    #endif
+  }
 
   #if __CUDACC__
   void freeMatrix(){
     if (is_init) {
       CUDA_CHECK(cudaFree(matrix));
+      table->~HashTable();
+      is_init = false;
     }
   }
   #endif

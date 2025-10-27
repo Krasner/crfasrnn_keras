@@ -35,6 +35,7 @@ class HashTable
 
       // Set create to true
       create = true;
+      //std::cout << "Hash table has been created" << std::endl;
       #endif // FILTER_GPU
     }
 
@@ -53,7 +54,9 @@ class HashTable
 
     ~HashTable(){
       #ifdef FILTER_GPU
+      //std::cout << "Hash table destructor" << std::endl;
       if(create){
+        //std::cout << "Hash table is created" << std::endl;
         // Free pointers allocated during
         CUDA_CHECK(cudaFree(table_entries));
         CUDA_CHECK(cudaFree(table_keys));

@@ -379,7 +379,7 @@ __global__ static void slice(const int w, const int h, const int vd,
 
 template<int pd>
 void gpu_init(const float* features,
-              HashTable* table,
+              std::unique_ptr<HashTable>& table,
               MatrixEntry* matrix,
               const int w, const int h)
 {
@@ -429,7 +429,7 @@ void gpu_init(const float* features,
 }
 
 template<int pd, typename Dtype>
-void gpu_compute(Dtype* out, const Dtype* in, const HashTable &table,
+void gpu_compute(Dtype* out, const Dtype* in, const std::unique_ptr<HashTable> &table,
                  const MatrixEntry* matrix,
                  int w, int h, int vd,
                  bool reverse, bool add){
@@ -451,6 +451,7 @@ void gpu_compute(Dtype* out, const Dtype* in, const HashTable &table,
             table_values);
     CUDA_POST_KERNEL_CHECK;
 
+    //std::cout << "Running blur, reverse: " << reverse << std::endl;
     // blur
     int cleanBlockSize = 32;
     dim3 cleanBlocks((num_points-1)/cleanBlockSize+1, 2*(pd+1), 1);
@@ -463,9 +464,9 @@ void gpu_compute(Dtype* out, const Dtype* in, const HashTable &table,
     for (int color = reverse?pd:0; color <= pd && color>=0; reverse?color--:color++) {
         blur<pd><<<cleanBlocks, cleanBlockSize>>>(num_points*(pd+1), newValues,
                 matrix,
-                table.table_entries,
-                table.table_keys,
-                table.table_capacity,
+                table->table_entries,
+                table->table_keys,
+                table->table_capacity,
                 table_values,
                 color,
                 vd);
@@ -473,6 +474,8 @@ void gpu_compute(Dtype* out, const Dtype* in, const HashTable &table,
         // swap pointers does not seem to work...
         swapHashTableValues(oldValues, newValues, table_values, size);
     }
+
+    //std::cout << "Running slice, reverse: " << reverse << std::endl;
 
     // slice
     blocks.y /= (pd+1);
@@ -483,15 +486,19 @@ void gpu_compute(Dtype* out, const Dtype* in, const HashTable &table,
     CUDA_CHECK(cudaFree(table_values)) ;
     CUDA_CHECK(cudaFree(newValues)) ;
     CUDA_CHECK(cudaFree(oldValues)) ;
+
+    //std::cout << "Done" << std::endl;
 }
 
 void ModifiedPermutohedral::init_gpu(const float* features, int num_dimensions, int w, int h) {
     //Initialize Hash table
     if(!is_init){
-        table.createHashTable(w*h*(num_dimensions+1), num_dimensions);
+        //std::cout << "allocating hash table" << std::endl;
+        table->createHashTable(w*h*(num_dimensions+1), num_dimensions);
         CUDA_CHECK(cudaMalloc((void **)&matrix, sizeof(MatrixEntry)*(w*h*(num_dimensions+1))));
     } else {
-        table.resetHashTable(w_*h_*(d_+1), d_);
+        //std::cout << "reseting hash table" << std::endl;
+        table->resetHashTable(w*h*(num_dimensions+1), num_dimensions);
     }
     w_ = w ;
     h_ = h ;
@@ -499,10 +506,10 @@ void ModifiedPermutohedral::init_gpu(const float* features, int num_dimensions, 
     N_ = w*h ;
     switch(num_dimensions){
         case 2:
-            gpu_init<2>(features, &table, matrix, w_, h_);
+            gpu_init<2>(features, table, matrix, w_, h_);
             break;
         case 5:
-            gpu_init<5>(features, &table, matrix, w_, h_);
+            gpu_init<5>(features, table, matrix, w_, h_);
             break;
         default:
             std::cout << "num_dimensions should be 2 or 5";

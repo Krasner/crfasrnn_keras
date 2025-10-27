@@ -74,7 +74,7 @@ void HighDimFilterFunctor<GPUDevice>::operator()(
     const int height = input_img.dim_size(1);
     const int width = input_img.dim_size(2);
     const int num_pixels = width * height;
-
+    {
     ModifiedPermutohedral mp;
 
     if (params.bilateral_) {
@@ -102,7 +102,7 @@ void HighDimFilterFunctor<GPUDevice>::operator()(
     }
 
     mp.freeMatrix();
- 
+    }
 }
 
 
