@@ -22,25 +22,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import sys
-sys.path.insert(1, './src')
 from crfrnn_model import get_crfrnn_model_def
 import util
+import argparse
 
 
 def main():
-    input_file = 'image.jpg'
-    output_file = 'labels.png'
+    parser = argparse.ArgumentParser()
 
-    # Download the model from https://goo.gl/ciEYZi
-    saved_model_path = 'crfrnn_keras_model.h5'
+    parser.add_argument('--model', help='full path to the .h5 model (download from https://goo.gl/ciEYZi)',
+                        required=True)
+    parser.add_argument('--image', help='full path to the image', required=True)
+    parser.add_argument('--output', help='full path to the output label image', default=None)
+    args = parser.parse_args()
+
+    saved_model_path = args.model
+    input_file = args.image
+    output_file = args.output or input_file + '_labels.png'
 
     model = get_crfrnn_model_def()
     model.load_weights(saved_model_path)
 
-    img_data, img_h, img_w, size = util.get_preprocessed_image(input_file)
+    img_data, img_h, img_w, original_size = util.get_preprocessed_image(input_file)
     probs = model.predict(img_data, verbose=False)[0]
-    segmentation = util.get_label_image(probs, img_h, img_w, size)
+    segmentation = util.get_label_image(probs, img_h, img_w, original_size)
     segmentation.save(output_file)
 
 

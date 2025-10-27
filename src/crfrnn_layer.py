@@ -24,10 +24,20 @@ SOFTWARE.
 
 import numpy as np
 import tensorflow as tf
-from keras.engine.topology import Layer
+# from keras.engine.topology import Layer
+from tensorflow.keras.layers import Layer
+
 import high_dim_filter_loader
+
 custom_module = high_dim_filter_loader.custom_module
 
+
+def _diagonal_initializer(shape, *ignored, **ignored_too):
+    return np.eye(shape[0], shape[1], dtype=np.float32)
+
+
+def _potts_model_initializer(shape, *ignored, **ignored_too):
+    return -1 * _diagonal_initializer(shape)
 
 class CrfRnnLayer(Layer):
     """ Implements the CRF-RNN layer described in:
@@ -55,29 +65,32 @@ class CrfRnnLayer(Layer):
         # Weights of the spatial kernel
         self.spatial_ker_weights = self.add_weight(name='spatial_ker_weights',
                                                    shape=(self.num_classes, self.num_classes),
-                                                   initializer='uniform',
+                                                   initializer=_diagonal_initializer,
                                                    trainable=True)
 
         # Weights of the bilateral kernel
         self.bilateral_ker_weights = self.add_weight(name='bilateral_ker_weights',
                                                      shape=(self.num_classes, self.num_classes),
-                                                     initializer='uniform',
+                                                     initializer=_diagonal_initializer,
                                                      trainable=True)
 
         # Compatibility matrix
         self.compatibility_matrix = self.add_weight(name='compatibility_matrix',
                                                     shape=(self.num_classes, self.num_classes),
-                                                    initializer='uniform',
+                                                    initializer=_potts_model_initializer,
                                                     trainable=True)
 
         super(CrfRnnLayer, self).build(input_shape)
 
-    def call(self, inputs):
-        unaries = tf.transpose(inputs[0][0, :, :, :], perm=(2, 0, 1))
-        rgb = tf.transpose(inputs[1][0, :, :, :], perm=(2, 0, 1))
+    def single_call(self, inputs):
+        # unaries = tf.transpose(inputs[0][0, :, :, :], perm=(2, 0, 1))
+        # rgb = tf.transpose(inputs[1][0, :, :, :], perm=(2, 0, 1))
+        unaries = tf.transpose(inputs[0], perm=(2, 0, 1))
+        rgb = tf.transpose(inputs[1], perm=(2, 0, 1))
 
         c, h, w = self.num_classes, self.image_dims[0], self.image_dims[1]
-        all_ones = np.ones((c, h, w), dtype=np.float32)
+        # all_ones = np.ones((c, h, w), dtype=np.float32)
+        all_ones = tf.ones((c, h, w), dtype=tf.float32)
 
         # Prepare filter normalization coefficients
         spatial_norm_vals = custom_module.high_dim_filter(all_ones, rgb, bilateral=False,
@@ -114,7 +127,22 @@ class CrfRnnLayer(Layer):
             pairwise = tf.reshape(pairwise, (c, h, w))
             q_values = unaries - pairwise
 
-        return tf.transpose(tf.reshape(q_values, (1, c, h, w)), perm=(0, 2, 3, 1))
+        # return tf.transpose(tf.reshape(q_values, (1, c, h, w)), perm=(0, 2, 3, 1))
+        return tf.transpose(tf.reshape(q_values, (c, h, w)), perm=(1, 2, 0))
+        
+    def call(self, inputs):
+        return tf.concat(tf.map_fn(self.single_call, inputs, fn_output_signature=tf.float32), 0)
 
     def compute_output_shape(self, input_shape):
         return input_shape
+        
+if __name__ == "__main__":
+    tf.debugging.set_log_device_placement(True)
+    
+    img = tf.random.uniform((3,512,512,3))
+    logits = tf.random.normal((3,512,512,2))
+    
+    layer = CrfRnnLayer((512,512), 2, 160., 3., 3., 10)
+    
+    out = layer((logits, img))
+    breakpoint()
