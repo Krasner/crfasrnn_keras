@@ -85,12 +85,7 @@ public:
     table = std::make_unique<HashTable>();
     #endif
   }
-  ~ModifiedPermutohedral() {
-    //std::cout << "MP destructor called" << std::endl;
-    #if __CUDACC__
-    // table->~HashTable();
-    #endif
-  }
+  ~ModifiedPermutohedral() {}
 
   #if __CUDACC__
   void freeMatrix(){

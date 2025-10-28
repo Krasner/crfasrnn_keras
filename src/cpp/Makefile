@@ -20,14 +20,15 @@ USE_GPU := 1
 # Read Tensorflow paths
 TF_INC := $(shell python -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
 TF_LIB := $(shell python -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
-TF_CFLAGS=$(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') 
-TF_LFLAGS := $(shell ${PYTHON} -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
+TF_CFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') 
+TF_LFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
 
 # Is the Tensorflow version >= 1.4?
-TF_VERSION_GTE_1_4 := $(shell expr `python -c 'import tensorflow as tf; print(tf.__version__)' | cut -f1,2 -d.` \>= 1.4)
+# TF_VERSION_GTE_1_4 := $(shell expr `python -c 'import tensorflow as tf; print(tf.__version__)' | cut -f1,2 -d.` \>= 1.4)
 
 # Flags required for all cases
-CFLAGS := -std=c++17 -D_GLIBCXX_USE_CXX11_ABI=0 -shared -fPIC -I$(TF_INC) -I$(TF_INC)/external/nsync/public -O2 
+# CFLAGS := -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0 -shared -fPIC -I$(TF_INC) -I$(TF_INC)/external/nsync/public -O2
+CFLAGS := -std=c++11 -shared -fPIC -O2
 
 # Set a special flag if we are on macOS
 ifeq ($(shell uname -s), Darwin)
@@ -52,10 +53,10 @@ high_dim_filter.so: cudacode.o modified_permutohedral.o high_dim_filter.cc modif
 	g++ $(CFLAGS) -o high_dim_filter.so high_dim_filter.cc modified_permutohedral.cc cudacode.o modified_permutohedral.o $(TF_CFLAGS) $(TF_LFLAGS) -L/usr/local/cuda/lib64 -lcuda -lcudart -D FILTER_GPU=$(USE_GPU)
 
 cudacode.o: high_dim_filter.cu 
-	nvcc -std=c++17 -c -o cudacode.o high_dim_filter.cu $(TF_CFLAGS) $(TF_LFLAGS) -x cu -Xcompiler -fPIC --expt-relaxed-constexpr -D FILTER_GPU=$(USE_GPU)
+	nvcc -std=c++11 -c -o cudacode.o high_dim_filter.cu $(TF_CFLAGS) $(TF_LFLAGS) -x cu -Xcompiler -fPIC --expt-relaxed-constexpr -D FILTER_GPU=$(USE_GPU)
 
 modified_permutohedral.o: modified_permutohedral.cu
-	nvcc -std=c++17 -c -o modified_permutohedral.o modified_permutohedral.cu $(TF_CFLAGS) $(TF_LFLAGS) -x cu -Xcompiler -fPIC --expt-relaxed-constexpr -D FILTER_GPU=$(USE_GPU)
+	nvcc -std=c++11 -c -o modified_permutohedral.o modified_permutohedral.cu $(TF_CFLAGS) $(TF_LFLAGS) -x cu -Xcompiler -fPIC --expt-relaxed-constexpr -D FILTER_GPU=$(USE_GPU)
 
 clean:
 	$(RM) high_dim_filter.so cudacode.o modified_permutohedral.o

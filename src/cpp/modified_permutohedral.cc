@@ -619,7 +619,7 @@ void ModifiedPermutohedral::sseCompute(Tensor& out_tensor, const Tensor& in_tens
 #else
 void ModifiedPermutohedral::sseCompute(Tensor& out, const Tensor& in, int value_size, bool reverse, bool add) const
 {
-	seqCompute_cpu( out, in, value_size, reverse, add);
+	seqCompute( out, in, value_size, reverse, add);
 }
 #endif
 

@@ -145,9 +145,10 @@ if __name__ == "__main__":
     
     layer = CrfRnnLayer((512,512), 2, 160., 3., 3., 10)
     
+    # check forward pass
     out = layer((logits, img))
-    breakpoint()
 
+    # check backward pass
     target = tf.ones_like(out)
     with tf.GradientTape() as tape:
         tape.watch(logits)
